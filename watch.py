@@ -9,6 +9,7 @@ via ntfy push + email. Designed to fail loudly rather than silently.
 import hashlib
 import json
 import os
+import re
 import smtplib
 import time
 from datetime import datetime, timedelta, timezone
@@ -33,6 +34,14 @@ KEYWORDS = [
     "kalligraf", "kalligraph", "calligraph",
     "서예", "seoye", "schriftkunst", "pinselschrift",
 ]
+
+# Matches "15 Jul 2026", "05 Mai 2026", "15.07.2026", "2026-07-15"
+DATE_RE = re.compile(
+    r"\b\d{1,2}\s*(?:Jan|Feb|Mrz|M\u00e4r|Apr|Mai|Jun|Jul|Aug|Sep|Okt|Nov|Dez)[a-z\u00e4]*\.?\s*\d{4}\b"
+    r"|\b\d{1,2}\.\s*\d{1,2}\.\s*\d{2,4}\b"
+    r"|\b\d{4}[-./]\d{1,2}[-./]\d{1,2}\b",
+    re.IGNORECASE,
+)
 
 STATE_FILE = "state.json"
 FAIL_ALERT_AFTER = 3        # consecutive failures before crying wolf
@@ -80,9 +89,8 @@ def _title_from_repetition(text: str):
     return None
 
 
-def parse_posts(html: str):
-    """Return a list of {title, date, excerpt} for every post on the page."""
-    soup = BeautifulSoup(html, "html.parser")
+def _parse_card_layout(soup):
+    """Layout A: each post is one <a> containing the body and 'Beitragstag <date>'."""
     posts = []
 
     for anchor in soup.find_all("a"):
@@ -92,7 +100,7 @@ def parse_posts(html: str):
 
         head = text.split("Beitragstag")[0].strip()
 
-        # Strategy 1: an explicit emphasis tag holding the title.
+        # An explicit emphasis tag holding the title.
         title = None
         for tag in anchor.find_all(["strong", "b", "h3", "h4"]):
             candidate = tag.get_text(" ", strip=True)
@@ -100,11 +108,11 @@ def parse_posts(html: str):
                 title = candidate
                 break
 
-        # Strategy 2: the doubled-title pattern.
+        # The doubled-title pattern.
         if not title:
             title = _title_from_repetition(head)
 
-        # Strategy 3: give up and truncate.
+        # Give up and truncate.
         if not title:
             title = head[:160]
 
@@ -117,6 +125,82 @@ def parse_posts(html: str):
         })
 
     return posts
+
+
+def _parse_row_layout(soup):
+    """Layout B: table or plain list, date in its own cell rather than inside the link."""
+    posts = []
+
+    for node in soup.find_all(["li", "tr", "article", "dd"]):
+        # Only leaf rows — skip wrappers that contain other rows.
+        if node.find(["li", "tr", "article", "dd"]):
+            continue
+
+        text = " ".join(node.get_text(" ", strip=True).split())
+        if len(text) < 10 or len(text) > 5000:
+            continue
+
+        match = DATE_RE.search(text)
+        if not match:
+            continue
+
+        anchor = node.find("a")
+        raw = anchor.get_text(" ", strip=True) if anchor else text
+        raw = " ".join(raw.split())
+        raw = DATE_RE.sub("", raw).strip(" \u00b7|-\u2013\u2014,.")
+
+        title = _title_from_repetition(raw) or raw
+        if len(title) < 5:
+            continue
+
+        posts.append({
+            "title": " ".join(title.split())[:250],
+            "date": " ".join(match.group(0).split()),
+            "excerpt": text[:600],
+        })
+
+    return posts
+
+
+def parse_posts(html: str):
+    """Return a list of {title, date, excerpt} for every post on the page."""
+    soup = BeautifulSoup(html, "html.parser")
+
+    posts = _parse_card_layout(soup)
+    if not posts:
+        posts = _parse_row_layout(soup)
+
+    # Drop duplicates that nested markup can produce.
+    unique, seen = [], set()
+    for post in posts:
+        fp = fingerprint(post["title"])
+        if fp not in seen:
+            seen.add(fp)
+            unique.append(post)
+
+    return unique
+
+
+def diagnose(html: str) -> None:
+    """Print enough about an unparseable page to fix the parser next round."""
+    soup = BeautifulSoup(html, "html.parser")
+    body = soup.body or soup
+    markup = str(body)
+
+    print(f"    diag: text length {len(body.get_text(' ', strip=True))}")
+    counts = {tag: len(body.find_all(tag)) for tag in ("li", "tr", "table", "article", "a")}
+    print(f"    diag: element counts {counts}")
+
+    match = DATE_RE.search(markup)
+    if match:
+        start = max(0, match.start() - 700)
+        print("    diag: markup near first date >>>")
+        print(markup[start:match.end() + 300])
+        print("    <<<")
+    else:
+        print("    diag: no date pattern anywhere; first 800 chars of text >>>")
+        print(body.get_text(" ", strip=True)[:800])
+        print("    <<<")
 
 
 def fingerprint(title: str) -> str:
@@ -215,8 +299,10 @@ def main() -> None:
         first_run = not board["seen"]
 
         try:
-            posts = parse_posts(fetch(url))
+            html = fetch(url)
+            posts = parse_posts(html)
             if not posts:
+                diagnose(html)
                 raise ValueError("0 posts parsed — page structure may have changed")
         except Exception as exc:
             board["fails"] += 1
