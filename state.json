@@ -1,0 +1,33 @@
+{
+  "Kurse/Seminare": {
+    "fails": 0,
+    "seen": [
+      "590e5cb336f00b37",
+      "0644ebb1d05f1fb1",
+      "ce30f0b81926a9bc",
+      "8e55992f15cc1dfb",
+      "e2d0f830f395ff5c",
+      "562f39f2e51b4377",
+      "ff90eac44643b4a5",
+      "1e7d63ee5d21fcae",
+      "04ca93f565e7bb7d"
+    ],
+    "warned": false
+  },
+  "Mitteilungen": {
+    "fails": 1,
+    "seen": [],
+    "warned": false
+  },
+  "Veranstaltungen": {
+    "fails": 0,
+    "seen": [
+      "13e31bf7c123b1af",
+      "6796b4ced08f2e12",
+      "d711ba8f7f62a510",
+      "fd81463ca3ad0340",
+      "53956c7f12572e53"
+    ],
+    "warned": false
+  }
+}
