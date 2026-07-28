@@ -15,8 +15,22 @@
     "warned": false
   },
   "Mitteilungen": {
-    "fails": 1,
-    "seen": [],
+    "fails": 0,
+    "seen": [
+      "bcbc920d86c972c8",
+      "e86221e484e2bf9f",
+      "0d0848734baee526",
+      "7a4ff5edb6dc7321",
+      "85041de9f2d5dcee",
+      "f6c8c2c068bf37d9",
+      "282033c7b56e92b6",
+      "dc72bae467896de5",
+      "df22cc175a901f4a",
+      "4bb20e6b9fb919b0",
+      "11a3dd0ecfed5af2",
+      "3b5f5d455a84a7a5",
+      "8a21a1671d31e14b"
+    ],
     "warned": false
   },
   "Veranstaltungen": {
