@@ -1,6 +1,6 @@
 {
   "Kurse/Seminare": {
-    "fails": 1,
+    "fails": 0,
     "seen": [
       "ce30f0b81926a9bc",
       "8e55992f15cc1dfb",
@@ -21,7 +21,7 @@
     "warned": false
   },
   "Mitteilungen": {
-    "fails": 1,
+    "fails": 0,
     "seen": [
       "bcbc920d86c972c8",
       "e86221e484e2bf9f",
@@ -47,7 +47,7 @@
     "warned": false
   },
   "Veranstaltungen": {
-    "fails": 1,
+    "fails": 0,
     "seen": [
       "13e31bf7c123b1af",
       "6796b4ced08f2e12",
